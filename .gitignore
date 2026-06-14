@@ -1,0 +1,57 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl
+
+# Terraform variable files
+*.tfvars
+*.tfvars.json
+
+# AWS credentials
+.aws/
+
+# Kubernetes
+kubeconfig
+*.kubeconfig
+
+# Secrets
+.env
+.env.*
+secrets.yaml
+secret.yaml
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# IntelliJ
+.idea/
+
+# Node.js
+node_modules/
+npm-debug.log*
+
+# Python
+__pycache__/
+*.pyc
+
+# Docker
+*.tar
+
+# Jenkins
+jenkins_home/
+
+# Coverage
+coverage/
