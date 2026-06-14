@@ -1,4 +1,4 @@
-name: Build Push Deploy
+name: Deploy to EKS
 
 on:
   push:
@@ -7,45 +7,124 @@ on:
 
 env:
   AWS_REGION: us-east-1
+  ECR_REGISTRY: 076124125794.dkr.ecr.us-east-1.amazonaws.com
+  EKS_CLUSTER_NAME: pharma-dev-cluster
 
 jobs:
   deploy:
-
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+
     steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
 
-      - uses: actions/checkout@v4
-
-      - uses: aws-actions/configure-aws-credentials@v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
 
-      - uses: aws-actions/amazon-ecr-login@v2
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      # Build and Push User Service
       - name: Build User Image
         run: |
-          docker build -t user-service:${{ github.sha }} ./user-service
+          docker build \
+            -t $ECR_REGISTRY/user-service:${{ github.sha }} \
+            ./user-service
 
+      - name: Push User Image
+        run: |
+          docker push \
+            $ECR_REGISTRY/user-service:${{ github.sha }}
+
+      # Build and Push Product Service
       - name: Build Product Image
         run: |
-          docker build -t product-service:${{ github.sha }} ./product-service
+          docker build \
+            -t $ECR_REGISTRY/product-service:${{ github.sha }} \
+            ./product-service
 
+      - name: Push Product Image
+        run: |
+          docker push \
+            $ECR_REGISTRY/product-service:${{ github.sha }}
+
+      # Build and Push Order Service
       - name: Build Order Image
         run: |
-          docker build -t order-service:${{ github.sha }} ./order-service
+          docker build \
+            -t $ECR_REGISTRY/order-service:${{ github.sha }} \
+            ./order-service
 
-      - name: Update kubeconfig
+      - name: Push Order Image
+        run: |
+          docker push \
+            $ECR_REGISTRY/order-service:${{ github.sha }}
+
+      - name: Configure kubectl
         run: |
           aws eks update-kubeconfig \
-          --name ${{ secrets.EKS_CLUSTER_NAME }}
+            --region $AWS_REGION \
+            --name $EKS_CLUSTER_NAME
+
+      - name: Verify Cluster Access
+        run: |
+          kubectl get nodes
+
+      - name: Helm Lint
+        run: |
+          helm lint ./helm/microservices
 
       - name: Helm Deploy
         run: |
           helm upgrade --install microservices \
-          ./helm/microservices \
-          --set image.user.tag=${{ github.sha }} \
-          --set image.product.tag=${{ github.sha }} \
-          --set image.order.tag=${{ github.sha }}
+            ./helm/microservices \
+            --namespace microservices \
+            --create-namespace \
+            --set image.user.repository=$ECR_REGISTRY/user-service \
+            --set image.user.tag=${{ github.sha }} \
+            --set image.product.repository=$ECR_REGISTRY/product-service \
+            --set image.product.tag=${{ github.sha }} \
+            --set image.order.repository=$ECR_REGISTRY/order-service \
+            --set image.order.tag=${{ github.sha }}
+
+      - name: Verify User Rollout
+        run: |
+          kubectl rollout status deployment/user-service \
+            -n microservices \
+            --timeout=300s
+
+      - name: Verify Product Rollout
+        run: |
+          kubectl rollout status deployment/product-service \
+            -n microservices \
+            --timeout=300s
+
+      - name: Verify Order Rollout
+        run: |
+          kubectl rollout status deployment/order-service \
+            -n microservices \
+            --timeout=300s
+
+      - name: Show Pods
+        run: |
+          kubectl get pods -n microservices -o wide
+
+      - name: Show Services
+        run: |
+          kubectl get svc -n microservices
+
+      - name: Debug On Failure
+        if: failure()
+        run: |
+          kubectl get pods -n microservices
+          kubectl describe pods -n microservices

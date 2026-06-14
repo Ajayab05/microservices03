@@ -15,6 +15,9 @@ image:
     repository: 076124125794.dkr.ecr.us-east-1.amazonaws.com/order-service
     tag: latest
 
-rds:
+database:
   host: pharma-dev-postgres.c8zsmesiuilk.us-east-1.rds.amazonaws.com
-  db: ecommerce
+  port: 5432
+  username: pharmaadmin
+  password: MySecurePassword123!
+  database: pharmadb

@@ -14,13 +14,13 @@ spec:
   template:
     metadata:
       labels:
-        app: user-service
+        app: product-service
 
     spec:
       containers:
-      - name: user-service
+      - name: product-service
 
-        image: "{{ .Values.image.user.repository }}:{{ .Values.image.user.tag }}"
+        image: "{{ .Values.image.product.repository }}:{{ .Values.image.product.tag }}"
 
         imagePullPolicy: Always
 
