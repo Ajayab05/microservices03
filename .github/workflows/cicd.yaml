@@ -1,0 +1,63 @@
+name: Microservices CI
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Containers
+        run: |
+          docker compose build
+
+      - name: Start Containers
+        run: |
+          docker compose up -d
+
+      - name: Wait
+        run: sleep 20
+
+      - name: User Health Check
+        run: |
+          curl --fail http://localhost:3000/health
+
+      - name: Product Health Check
+        run: |
+          curl --fail http://localhost:3001/health
+
+      - name: Order Health Check
+        run: |
+          curl --fail http://localhost:3002/health
+
+      - name: Create User
+        run: |
+          curl -X POST http://localhost:3000/users \
+          -H "Content-Type: application/json" \
+          -d '{"name":"github","email":"github@test.com"}'
+
+      - name: Verify User
+        run: |
+          curl http://localhost:3000/users | grep github@test.com
+
+      - name: Show Logs If Failed
+        if: failure()
+        run: |
+          docker compose logs
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose down -v

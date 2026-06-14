@@ -1,0 +1,68 @@
+services:
+
+  postgres:
+    image: postgres:16
+
+    container_name: postgres
+
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: ecommerce
+
+    ports:
+      - "5433:5432"
+
+    volumes:
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  user-service:
+    build: ./user-service
+
+    container_name: user-service
+
+    ports:
+      - "3000:3000"
+
+    environment:
+      DB_HOST: postgres
+      DB_USER: admin
+      DB_PASSWORD: admin123
+      DB_NAME: ecommerce
+
+    depends_on:
+      - postgres
+
+  product-service:
+    build: ./product-service
+
+    container_name: product-service
+
+    ports:
+      - "3001:3001"
+
+    environment:
+      DB_HOST: postgres
+      DB_USER: admin
+      DB_PASSWORD: admin123
+      DB_NAME: ecommerce
+
+    depends_on:
+      - postgres
+
+  order-service:
+    build: ./order-service
+
+    container_name: order-service
+
+    ports:
+      - "3002:3002"
+
+    environment:
+      DB_HOST: postgres
+      DB_USER: admin
+      DB_PASSWORD: admin123
+      DB_NAME: ecommerce
+
+    depends_on:
+      - postgres
