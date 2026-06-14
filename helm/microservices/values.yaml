@@ -1,0 +1,20 @@
+namespace: microservices
+
+replicaCount: 2
+
+image:
+  user:
+    repository: 076124125794.dkr.ecr.us-east-1.amazonaws.com/user-service
+    tag: latest
+
+  product:
+    repository: 076124125794.dkr.ecr.us-east-1.amazonaws.com/product-service
+    tag: latest
+
+  order:
+    repository: 076124125794.dkr.ecr.us-east-1.amazonaws.com/order-service
+    tag: latest
+
+rds:
+  host: pharma-dev-postgres.c8zsmesiuilk.us-east-1.rds.amazonaws.com
+  db: ecommerce

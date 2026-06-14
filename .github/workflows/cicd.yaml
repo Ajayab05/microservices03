@@ -1,63 +1,51 @@
-name: Microservices CI
+name: Build Push Deploy
 
 on:
   push:
     branches:
       - main
 
-  pull_request:
-    branches:
-      - main
+env:
+  AWS_REGION: us-east-1
 
 jobs:
-  test:
+  deploy:
 
     runs-on: ubuntu-latest
 
     steps:
 
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Build Containers
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build User Image
         run: |
-          docker compose build
+          docker build -t user-service:${{ github.sha }} ./user-service
 
-      - name: Start Containers
+      - name: Build Product Image
         run: |
-          docker compose up -d
+          docker build -t product-service:${{ github.sha }} ./product-service
 
-      - name: Wait
-        run: sleep 20
-
-      - name: User Health Check
+      - name: Build Order Image
         run: |
-          curl --fail http://localhost:3000/health
+          docker build -t order-service:${{ github.sha }} ./order-service
 
-      - name: Product Health Check
+      - name: Update kubeconfig
         run: |
-          curl --fail http://localhost:3001/health
+          aws eks update-kubeconfig \
+          --name ${{ secrets.EKS_CLUSTER_NAME }}
 
-      - name: Order Health Check
+      - name: Helm Deploy
         run: |
-          curl --fail http://localhost:3002/health
-
-      - name: Create User
-        run: |
-          curl -X POST http://localhost:3000/users \
-          -H "Content-Type: application/json" \
-          -d '{"name":"github","email":"github@test.com"}'
-
-      - name: Verify User
-        run: |
-          curl http://localhost:3000/users | grep github@test.com
-
-      - name: Show Logs If Failed
-        if: failure()
-        run: |
-          docker compose logs
-
-      - name: Cleanup
-        if: always()
-        run: |
-          docker compose down -v
+          helm upgrade --install microservices \
+          ./helm/microservices \
+          --set image.user.tag=${{ github.sha }} \
+          --set image.product.tag=${{ github.sha }} \
+          --set image.order.tag=${{ github.sha }}
